@@ -1,0 +1,21 @@
+<?php
+
+/**
+ * Implements hook_uninstall().
+ */
+function permissions_by_path_uninstall() {
+  // Get connection to the database.
+//  $database = \Drupal::service('database');
+
+  // Delete migration configuration from database.
+//  $database->delete('config')
+//    ->condition('name', 'migrate_plus.migration.uccs_migrate%', 'LIKE')
+//    ->execute();
+  // Delete the migration group.
+//  $database->delete('config')
+//    ->condition('name', 'migrate_plus.migrate_group.uccs_migrate')
+//    ->execute();
+
+  // Clear all caches.
+  drupal_flush_all_caches();
+}

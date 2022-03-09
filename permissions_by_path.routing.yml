@@ -1,0 +1,14 @@
+permissions_by_path.admin_settings:
+  path: '/admin/config/permissions_by_path'
+  defaults:
+    _form: '\Drupal\permissions_by_path\Form\ModuleConfigurationForm'
+    _title: 'Permissions by Path configuration screen'
+  requirements:
+    _permission: 'administer site configuration'
+permissions_by_path.content:
+  path: '/permissions_by_path_notice'
+  defaults:
+    _controller: '\Drupal\permissions_by_path\Controller\NoticeController::content'
+    _title: 'Permissions by Path Notice'
+  requirements:
+    _permission: 'access content'
