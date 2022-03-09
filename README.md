@@ -11,6 +11,8 @@ Let's say your Drupal site has the following user roles:
 
 And you have two teams that should have limited access to different paths inside the same website. The **Marketing** team should have limited access to publish and edit pages within the **/news** path, and the **Help Desk** team should have limited access to publish and edit pages within the **/helpdesk** path.
 
+Assign the **Limited Content Editor** role to all the team members of both teams.
+
 **Marketing:**
 - marketing-user1
 - marketing-user2
