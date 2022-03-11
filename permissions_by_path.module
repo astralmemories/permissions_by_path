@@ -1,194 +1,161 @@
 <?php
 
- use Symfony\Component\HttpFoundation\RedirectResponse;
- use Drupal\Core\Url;
- use Drupal\Core\Form\FormStateInterface;
-
 /**
- *
+ * @file
+ * The Permissions by Path module file, which controls most of the functionalities of the module.
  */
 
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Drupal\Core\Url;
+use Drupal\Core\Form\FormStateInterface;
 
-
-function permissions_by_path_form_alter (&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id)
-{
-  // Check if this Module is Enabled or Disabled
-
-  // Get the configuration file
+/**
+ * Function hook_form_alter Perform alterations before a form is rendered.
+ */
+function permissions_by_path_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+  // Check if this Module is Enabled or Disabled. Get the configuration file.
   $config = \Drupal::config('permissions_by_path.settings');
 
-  // Grab the module_enable checkbox from the config file
+  // Grab the module_enable checkbox from the config file.
   $module_enable = $config->get('module_enable');
 
   // Is this module enabled?
   if ($module_enable == 1) {
 
-
-    // Devel Kint module
-    // kint($form_id);
-
-
-    // Debug message to know if the module is on and to show the current form id
-    // drupal_set_message(t('The Permissions by Path module is on! Form id: ' . $form_id), 'status');
-
-
-    // Grabbing the current user
+    // Grabbing the current user.
     $current_user = \Drupal::currentUser();
     $user = \Drupal\user\Entity\User::load($current_user->id());
     $username = $user->getAccountName();
 
-
-    // Check if the current user is NOT the SUPER ADMIN
+    // Check if the current user is NOT the SUPER ADMIN.
     if ($user->uid->value != 1) {
 
+      // Grab the List of user roles that are not affected by this module ($roles_not_affected = []).
+      $roles_not_affected = (array) $config->get('unaffected_roles');
 
-      // Grab the List of user roles that are not affected by this module:
-      //$roles_not_affected = []
-      $roles_not_affected = (array)$config->get('unaffected_roles');
+      // Grab the list of roles that the current user has.
+      $user_roles = (array) $user->getRoles();
 
+      /* Bool variable used to check if the current user's roles are affected by this module. */
+      $has_unaffected_role = FALSE;
 
-      // Grab the list of roles that the current user has
-      $user_roles = (array)$user->getRoles();
-
-
-      // \Drupal::messenger()->addWarning("User Role: " . json_encode($user_roles));
-
-      // Bool variable used to check if the current user's roles are affected by this module
-      $has_unaffected_role = false;
-
-      // Go through the $user_roles array and ask if the current user role exists inside the $roles_not_affected array.
+      /* Go through the $user_roles array and ask if the current user role exists inside the $roles_not_affected array. */
       foreach ($user_roles as &$role) {
-        if (in_array($role, $roles_not_affected)) // If the current role exists in the $roles_not_affected array
-        {
-          $has_unaffected_role = true;
+        if (in_array($role, $roles_not_affected)) {
+          // If the current role exists in the $roles_not_affected array.
+          $has_unaffected_role = TRUE;
         }
       }
 
-      if (!$has_unaffected_role) { // If the current user doesn't have an unaffected role, do the following...
+      // If the current user doesn't have an unaffected role, do the following.
+      if (!$has_unaffected_role) {
 
         \Drupal::messenger()->addWarning("Your assigned user role is affected by the Permissions by Path module!");
 
-
-        // Create an empty array to store the paths that this current user has access to
+        // Create an empty array to store the paths that this current user has access to.
         $this_user_permissions = [];
 
-
-        // Grab the Permissions Paths with their List of users with access
+        // Grab the Permissions Paths with their List of users with access.
         $path1 = $config->get('path1');
-        $usernames_array1 = (array)$config->get('usernames1');
+        $usernames_array1 = (array) $config->get('usernames1');
 
         $path2 = $config->get('path2');
-        $usernames_array2 = (array)$config->get('usernames2');
+        $usernames_array2 = (array) $config->get('usernames2');
 
         $path3 = $config->get('path3');
-        $usernames_array3 = (array)$config->get('usernames3');
+        $usernames_array3 = (array) $config->get('usernames3');
 
         $path4 = $config->get('path4');
-        $usernames_array4 = (array)$config->get('usernames4');
+        $usernames_array4 = (array) $config->get('usernames4');
 
         $path5 = $config->get('path5');
-        $usernames_array5 = (array)$config->get('usernames5');
+        $usernames_array5 = (array) $config->get('usernames5');
 
         $path6 = $config->get('path6');
-        $usernames_array6 = (array)$config->get('usernames6');
+        $usernames_array6 = (array) $config->get('usernames6');
 
         $path7 = $config->get('path7');
-        $usernames_array7 = (array)$config->get('usernames7');
+        $usernames_array7 = (array) $config->get('usernames7');
 
         $path8 = $config->get('path8');
-        $usernames_array8 = (array)$config->get('usernames8');
+        $usernames_array8 = (array) $config->get('usernames8');
 
         $path9 = $config->get('path9');
-        $usernames_array9 = (array)$config->get('usernames9');
+        $usernames_array9 = (array) $config->get('usernames9');
 
         $path10 = $config->get('path10');
-        $usernames_array10 = (array)$config->get('usernames10');
+        $usernames_array10 = (array) $config->get('usernames10');
 
-
-        // \Drupal::messenger()->addWarning("Usernames: " . json_encode($usernames_array1));
-
-        // Check if the current user exists on the usernames list 1
+        // Check if the current user exists on the usernames list 1.
         foreach ($usernames_array1 as &$value) {
-
           if ($value == $username) {
             array_push($this_user_permissions, $path1);
           }
         }
 
         foreach ($usernames_array2 as &$value) {
-
           if ($value == $username) {
             array_push($this_user_permissions, $path2);
           }
         }
 
         foreach ($usernames_array3 as &$value) {
-
           if ($value == $username) {
             array_push($this_user_permissions, $path3);
           }
         }
 
         foreach ($usernames_array4 as &$value) {
-
           if ($value == $username) {
             array_push($this_user_permissions, $path4);
           }
         }
 
         foreach ($usernames_array5 as &$value) {
-
           if ($value == $username) {
             array_push($this_user_permissions, $path5);
           }
         }
 
         foreach ($usernames_array6 as &$value) {
-
           if ($value == $username) {
             array_push($this_user_permissions, $path6);
           }
         }
 
         foreach ($usernames_array7 as &$value) {
-
           if ($value == $username) {
             array_push($this_user_permissions, $path7);
           }
         }
 
         foreach ($usernames_array8 as &$value) {
-
           if ($value == $username) {
             array_push($this_user_permissions, $path8);
           }
         }
 
         foreach ($usernames_array9 as &$value) {
-
           if ($value == $username) {
             array_push($this_user_permissions, $path9);
           }
         }
 
         foreach ($usernames_array10 as &$value) {
-
           if ($value == $username) {
             array_push($this_user_permissions, $path10);
           }
         }
 
+        // Retrieve the list of affected node forms (Content Types) from the config file.
+        $affected_node_forms = (array) $config->get('affected_node_forms');
 
-        // Retrieve the list of affected node forms (Content Types) from the config file
-        $affected_node_forms = (array)$config->get('affected_node_forms');
-
-
-        // Generate the list of create/edit/delete node forms IDs using the $affected_node_forms values
-        // Create an empty array to store the node create forms IDs
+        // Generate the list of create/edit/delete node forms IDs using the $affected_node_forms values.
+        // Create an empty array to store the node create forms IDs.
         $create_node_forms_IDs = [];
-        // Create an empty array to store the node edit forms IDs
+        // Create an empty array to store the node edit forms IDs.
         $edit_node_forms_IDs = [];
-        // Create an empty array to store the node delete forms IDs
+        // Create an empty array to store the node delete forms IDs.
         $delete_node_forms_IDs = [];
 
         foreach ($affected_node_forms as &$node_form) {
@@ -197,268 +164,224 @@ function permissions_by_path_form_alter (&$form, \Drupal\Core\Form\FormStateInte
           array_push($delete_node_forms_IDs, "node_" . $node_form . "_delete_form");
         }
 
-
-        // DO SOMETHING DIFFERENT DEPENDING ON THE PAGE THE CURRENT USER IS LOCATED
-        // ------------------------------------------------------------------------
-
-        // Check if this page is one of the create node forms listed in $create_node_forms_IDs
-        //if ($form_id == "node_uccs_single_page_2018_form") {
+        // DO SOMETHING DIFFERENT DEPENDING ON THE PAGE THE CURRENT USER IS LOCATED!
+        // Check if this page is one of the create node forms listed in $create_node_forms_IDs.
         if (in_array($form_id, $create_node_forms_IDs)) {
 
-          // Prepare the Notice message
+          // Prepare the Notice message.
           $list_of_paths = "";
 
-          // List the paths that this user can access in a single string variable
+          // List the paths that this user can access in a single string variable.
           foreach ($this_user_permissions as &$permission_path) {
 
             if ($list_of_paths == "") {
               $list_of_paths = $permission_path;
-            } else {
+            }
+            else {
               $list_of_paths = $list_of_paths . " - " . $permission_path;
             }
           }
 
-          // Show Notice message
+          // Show Notice message.
           \Drupal::messenger()->addWarning("Hello {$username}, make sure to use the correct URL ALIAS path when creating a new page. You have access to edit pages that starts with the following path(s): {$list_of_paths}");
 
-
-          // Add the permissions_by_path_form_validate function to the validate state of this form
+          // Add the permissions_by_path_form_validate function to the validate state of this form.
           $form['#validate'][] = 'permissions_by_path_form_validate';
-
-
-        } else if (in_array($form_id, $edit_node_forms_IDs)) { // Check if this page is one of the edit node forms listed in $edit_node_forms_IDs
-          //else if ($form_id == "node_uccs_single_page_2018_edit_form") {
-
-          // else if (strpos(\Drupal::service('path.current')->getPath(), '/edit') !== false)
-
-
-          // Grab the current complete path. EX: /node/1/edit
+        }
+        elseif (in_array($form_id, $edit_node_forms_IDs)) {
+          // Check if this page is one of the edit node forms listed in $edit_node_forms_IDs.
+          // Grab the current complete path. EX: /node/1/edit.
           $path = \Drupal::service('path.current')->getPath();
 
-          // \Drupal::messenger()->addStatus('Path: ' . $path);
-
-
-          // Grab the $path variable and remove the '/edit' characters form the string
+          // Grab the $path variable and remove the '/edit' characters form the string.
           $path = str_replace("/edit", "", $path);
 
-          // Find what is the alias associated to this path
+          // Find what is the alias associated to this path.
           $langcode = \Drupal::languageManager()->getCurrentLanguage()->getId();
           $path_alias = \Drupal::service('path_alias.manager')->getAliasByPath($path, $langcode);
 
-          // \Drupal::messenger()->addStatus('Path Alias: ' . $path_alias);
+          // Create a bool variable to check if the user has access to this edit page.
+          $has_access = FALSE;
 
-          // Create a bool variable to check if the user has access to this edit page
-          $has_access = false;
-
-
-          // Check if the current user has access to this page
+          // Check if the current user has access to this page.
           foreach ($this_user_permissions as &$permission) {
             // Use strpos() to check if the $permission (current user path in the array) exists inside the $path_alias of this node.
             $pos = strpos($path_alias, $permission);
 
-            if ($pos !== false) {
-              // \Drupal::messenger()->addError("The string '$permission' was found in the string '$path_alias'");
-              // \Drupal::messenger()->addError("And exists at position $pos");
-
-              // Check if the position of the user path inside the $path_alias is 0
+            if ($pos !== FALSE) {
+              // Check if the position of the user path inside the $path_alias is 0.
               if ($pos == 0) {
-                $has_access = true;
+                $has_access = TRUE;
               }
             }
-            //else {
-            // Debug
-            //  \Drupal::messenger()->addError("The string '$permission' was not found in the string '$path_alias'");
-            //}
           }
 
-
           // Does this user has access?
-          if (!$has_access) { // NO access!
-            $redirect = new RedirectResponse(Url::fromUserInput('/permissions_by_path_notice')->toString());;
+          if (!$has_access) {
+            // NO access!
+            $redirect = new RedirectResponse(Url::fromUserInput('/permissions_by_path_notice')->toString());
             $redirect->send();
-          } else { // HAS access!
-            // Prepare the Notice message
+          }
+          else {
+            // HAS access! Prepare the Notice message.
             $list_of_paths = "";
 
-            // List the paths that this user can access in a single string variable
+            // List the paths that this user can access in a single string variable.
             foreach ($this_user_permissions as &$permission_path) {
 
               if ($list_of_paths == "") {
                 $list_of_paths = $permission_path;
-              } else {
+              }
+              else {
                 $list_of_paths = $list_of_paths . " - " . $permission_path;
               }
             }
 
-            // Show Notice message
+            // Show Notice message.
             \Drupal::messenger()->addWarning("Hello {$username}, you have access to edit this page. If you change the URL ALIAS of this page, make sure to start with (one of) the following path(s): {$list_of_paths}");
 
-            // Add the permissions_by_path_form_validate function to the validate state of this form
+            // Add the permissions_by_path_form_validate function to the validate state of this form.
             $form['#validate'][] = 'permissions_by_path_form_validate';
           }
 
-        } else if (in_array($form_id, $delete_node_forms_IDs)) { // Check if this page is one of the delete node forms listed in $delete_node_forms_IDs
-
-
-          // Grab the current complete path. EX: /node/1/edit
+        }
+        elseif (in_array($form_id, $delete_node_forms_IDs)) {
+          // Check if this page is one of the delete node forms listed in $delete_node_forms_IDs.
+          // Grab the current complete path. EX: /node/1/edit.
           $path = \Drupal::service('path.current')->getPath();
 
-          // Grab the $path variable and remove the '/delete' characters form the string
+          // Grab the $path variable and remove the '/delete' characters form the string.
           $path = str_replace("/delete", "", $path);
 
-          // \Drupal::messenger()->addStatus('Delete Path: ' . $path);
-
-          // Find what is the alias associated to this path
+          // Find what is the alias associated to this path.
           $langcode = \Drupal::languageManager()->getCurrentLanguage()->getId();
           $path_alias = \Drupal::service('path_alias.manager')->getAliasByPath($path, $langcode);
 
-          // \Drupal::messenger()->addStatus('Path Alias: ' . $path_alias);
+          // Create a bool variable to check if the user has access to this edit page.
+          $has_access = FALSE;
 
-
-          // Create a bool variable to check if the user has access to this edit page
-          $has_access = false;
-
-
-          // Check if the current user has access to this page
+          // Check if the current user has access to this page.
           foreach ($this_user_permissions as &$permission) {
             // Use strpos() to check if the $permission (current user path in the array) exists inside the $path_alias of this node.
             $pos = strpos($path_alias, $permission);
 
-            if ($pos !== false) {
-              // Check if the position of the user path inside the $path_alias is 0
+            if ($pos !== FALSE) {
+              // Check if the position of the user path inside the $path_alias is 0.
               if ($pos == 0) {
-                $has_access = true;
+                $has_access = TRUE;
               }
             }
           }
 
           // Does this user has access?
-          if (!$has_access) { // NO access!
-            $redirect = new RedirectResponse(Url::fromUserInput('/permissions_by_path_notice')->toString());;
-            $redirect->send();
-          }
-
-        } else if ($form_id == "revision_overview_form") { // Check if this page is a revisions page.
-
-          // Grab the current complete path. EX: /node/1/edit
-          $path = \Drupal::service('path.current')->getPath();
-
-          // Grab the $path variable and remove the '/revisions' characters form the string
-          $path = str_replace("/revisions", "", $path);
-
-          // \Drupal::messenger()->addStatus('Path: ' . $path);
-
-          // Find what is the alias associated to this path
-          $langcode = \Drupal::languageManager()->getCurrentLanguage()->getId();
-          $path_alias = \Drupal::service('path_alias.manager')->getAliasByPath($path, $langcode);
-
-          // \Drupal::messenger()->addStatus('Path Alias: ' . $path_alias);
-
-
-          // Create a bool variable to check if the user has access to this edit page
-          $has_access = false;
-
-
-          // Check if the current user has access to this page
-          foreach ($this_user_permissions as &$permission) {
-            // Use strpos() to check if the $permission (current user path in the array) exists inside the $path_alias of this node.
-            $pos = strpos($path_alias, $permission);
-
-            if ($pos !== false) {
-              // Check if the position of the user path inside the $path_alias is 0
-              if ($pos == 0) {
-                $has_access = true;
-              }
-            }
-          }
-
-          // Does this user has access?
-          if (!$has_access) { // NO access!
-            $redirect = new RedirectResponse(Url::fromUserInput('/permissions_by_path_notice')->toString());;
-            $redirect->send();
-          }
-
-        } else if ($form_id == "entity_clone_form") { // Check if this page is a entity clone page.
-
-          // Grab the current complete path. EX: /node/1/edit
-          $path = \Drupal::service('path.current')->getPath();
-
-          // Grab the $path variable and remove the '/entity_clone' characters form the string
-          $path = str_replace("/entity_clone", "", $path);
-
-          // \Drupal::messenger()->addStatus('Path: ' . $path);
-
-          // Find what is the alias associated to this path
-          $langcode = \Drupal::languageManager()->getCurrentLanguage()->getId();
-          $path_alias = \Drupal::service('path_alias.manager')->getAliasByPath($path, $langcode);
-
-          // \Drupal::messenger()->addStatus('Path Alias: ' . $path_alias);
-
-
-          // Create a bool variable to check if the user has access to this edit page
-          $has_access = false;
-
-
-          // Check if the current user has access to this page
-          foreach ($this_user_permissions as &$permission) {
-            // Use strpos() to check if the $permission (current user path in the array) exists inside the $path_alias of this node.
-            $pos = strpos($path_alias, $permission);
-
-            if ($pos !== false) {
-              // Check if the position of the user path inside the $path_alias is 0
-              if ($pos == 0) {
-                $has_access = true;
-              }
-            }
-          }
-
-          // Does this user has access?
-          if (!$has_access) { // NO access!
-            $redirect = new RedirectResponse(Url::fromUserInput('/permissions_by_path_notice')->toString());;
+          if (!$has_access) {
+            // NO access!
+            $redirect = new RedirectResponse(Url::fromUserInput('/permissions_by_path_notice')->toString());
             $redirect->send();
           }
 
         }
+        elseif ($form_id == "revision_overview_form") {
+          // Check if this page is a revisions page.
+          // Grab the current complete path. EX: /node/1/edit.
+          $path = \Drupal::service('path.current')->getPath();
 
+          // Grab the $path variable and remove the '/revisions' characters form the string.
+          $path = str_replace("/revisions", "", $path);
+
+          // Find what is the alias associated to this path.
+          $langcode = \Drupal::languageManager()->getCurrentLanguage()->getId();
+          $path_alias = \Drupal::service('path_alias.manager')->getAliasByPath($path, $langcode);
+
+          // Create a bool variable to check if the user has access to this edit page.
+          $has_access = FALSE;
+
+          // Check if the current user has access to this page.
+          foreach ($this_user_permissions as &$permission) {
+            // Use strpos() to check if the $permission (current user path in the array) exists inside the $path_alias of this node.
+            $pos = strpos($path_alias, $permission);
+
+            if ($pos !== FALSE) {
+              // Check if the position of the user path inside the $path_alias is 0.
+              if ($pos == 0) {
+                $has_access = TRUE;
+              }
+            }
+          }
+
+          // Does this user has access?
+          if (!$has_access) {
+            // NO access!
+            $redirect = new RedirectResponse(Url::fromUserInput('/permissions_by_path_notice')->toString());
+            $redirect->send();
+          }
+
+        }
+        elseif ($form_id == "entity_clone_form") {
+          // Check if this page is a entity clone page.
+          // Grab the current complete path. EX: /node/1/edit.
+          $path = \Drupal::service('path.current')->getPath();
+
+          // Grab the $path variable and remove the '/entity_clone' characters form the string.
+          $path = str_replace("/entity_clone", "", $path);
+
+          // Find what is the alias associated to this path.
+          $langcode = \Drupal::languageManager()->getCurrentLanguage()->getId();
+          $path_alias = \Drupal::service('path_alias.manager')->getAliasByPath($path, $langcode);
+
+          // Create a bool variable to check if the user has access to this edit page.
+          $has_access = FALSE;
+
+          // Check if the current user has access to this page.
+          foreach ($this_user_permissions as &$permission) {
+            // Use strpos() to check if the $permission (current user path in the array) exists inside the $path_alias of this node.
+            $pos = strpos($path_alias, $permission);
+
+            if ($pos !== FALSE) {
+              // Check if the position of the user path inside the $path_alias is 0.
+              if ($pos == 0) {
+                $has_access = TRUE;
+              }
+            }
+          }
+
+          // Does this user has access?
+          if (!$has_access) {
+            // NO access!
+            $redirect = new RedirectResponse(Url::fromUserInput('/permissions_by_path_notice')->toString());
+            $redirect->send();
+          }
+        }
       }
-
     }
-
   }
-
 }
 
-
-
-
+/**
+ * Function hook_form_validate.
+ *
+ * This module extends the form API to include convenient access to common for submission filters and validation checks.
+ */
 function permissions_by_path_form_validate(&$form, \Drupal\Core\Form\FormStateInterface $form_state) {
-
-  // \Drupal::messenger()->addWarning("inside the validate form.");
-
-
   // Check if the "Generate automatic URL alias" checkbox is activated or not:
-  if ($form_state->getValue('path')[0]['pathauto'] == 1) { // If activated...
-
-    // Show error message
+  if ($form_state->getValue('path')[0]['pathauto'] == 1) {
+    // If activated. Show error message!
     $form_state->setErrorByName('path][0][pathauto', t('You are required to manually add a path!.<br> Uncheck this checkbox and add a custom URL alias bellow.'));
   }
-  else {  // If not activated, check if this user has access to the custom path added to the URL alias field
-
-    // Grabbing the current user
+  else {
+    // If not activated, check if this user has access to the custom path added to the URL alias field.
+    // Grabbing the current user.
     $current_user = \Drupal::currentUser();
     $user = \Drupal\user\Entity\User::load($current_user->id());
     $username = $user->getAccountName();
 
-    // Get the configuration file
+    // Get the configuration file.
     $config = \Drupal::config('permissions_by_path.settings');
 
-
-    // Create an empty array to store the paths that this current user has access to
+    // Create an empty array to store the paths that this current user has access to.
     $this_user_permissions = [];
 
-
-
-    // Grab the Permissions Paths with their List of users with access
+    // Grab the Permissions Paths with their List of users with access.
     $path1 = $config->get('path1');
     $usernames_array1 = (array) $config->get('usernames1');
 
@@ -489,132 +412,114 @@ function permissions_by_path_form_validate(&$form, \Drupal\Core\Form\FormStateIn
     $path10 = $config->get('path10');
     $usernames_array10 = (array) $config->get('usernames10');
 
-
-
-    // \Drupal::messenger()->addWarning("Usernames: " . json_encode($usernames_array1));
-
-    // Check if the current user exists on the usernames list 1
+    // Check if the current user exists on the usernames list 1.
     foreach ($usernames_array1 as &$value) {
-
       if ($value == $username) {
         array_push($this_user_permissions, $path1);
       }
     }
 
     foreach ($usernames_array2 as &$value) {
-
       if ($value == $username) {
         array_push($this_user_permissions, $path2);
       }
     }
 
     foreach ($usernames_array3 as &$value) {
-
       if ($value == $username) {
         array_push($this_user_permissions, $path3);
       }
     }
 
     foreach ($usernames_array4 as &$value) {
-
       if ($value == $username) {
         array_push($this_user_permissions, $path4);
       }
     }
 
     foreach ($usernames_array5 as &$value) {
-
       if ($value == $username) {
         array_push($this_user_permissions, $path5);
       }
     }
 
     foreach ($usernames_array6 as &$value) {
-
       if ($value == $username) {
         array_push($this_user_permissions, $path6);
       }
     }
 
     foreach ($usernames_array7 as &$value) {
-
       if ($value == $username) {
         array_push($this_user_permissions, $path7);
       }
     }
 
     foreach ($usernames_array8 as &$value) {
-
       if ($value == $username) {
         array_push($this_user_permissions, $path8);
       }
     }
 
     foreach ($usernames_array9 as &$value) {
-
       if ($value == $username) {
         array_push($this_user_permissions, $path9);
       }
     }
 
     foreach ($usernames_array10 as &$value) {
-
       if ($value == $username) {
         array_push($this_user_permissions, $path10);
       }
     }
 
+    // Grab the custom URL alias that this user entered.
+    $url_alias_path = $form_state->getValue('path')[0]['alias'];
 
+    // Create a bool variable to check if the user has access to this edit page.
+    $has_access = FALSE;
 
-    // Grab the custom URL alias that this user entered
-    $URL_alias_path = $form_state->getValue('path')[0]['alias'];
-
-    // Create a bool variable to check if the user has access to this edit page
-    $has_access = false;
-
-
-    // Check if the current user has access to this page
+    // Check if the current user has access to this page.
     foreach ($this_user_permissions as &$permission) {
-      // Use strpos() to check if the $permission (current user path in the array) exists inside the $URL_alias_path of this node.
-      $pos = strpos($URL_alias_path, $permission);
+      // Use strpos() to check if the $permission (current user path in the array) exists inside the $url_alias_path of this node.
+      $pos = strpos($url_alias_path, $permission);
 
-      if ($pos !== false) {
-        // Check if the position of the user path inside the $path_alias is 0
+      if ($pos !== FALSE) {
+        // Check if the position of the user path inside the $path_alias is 0.
         if ($pos == 0) {
-          $has_access = true;
+          $has_access = TRUE;
 
-          // Check if the URL path would still be correct if you remove the $URL_alias_path from the current $permission
-          // Example: If you remove the current user $permission ("/experience") from the $URL_alias_path that the user entered ("/experiencee")
+          // Check if the URL path would still be correct if you remove the $url_alias_path from the current $permission.
+          // Example: If you remove the current user $permission ("/experience") from the $url_alias_path that the user entered ("/experiencee").
           // It would result in "e" which is not a valid URL path.
-          $resulting_path = str_replace($permission,"",$URL_alias_path);
+          $resulting_path = str_replace($permission, "", $url_alias_path);
 
-          if (strlen($resulting_path) > 0 ) { // Check if the $resulting_path variable is not empty
+          if (strlen($resulting_path) > 0) {
+            // Check if the $resulting_path variable is not empty.
             // If there are characters left in the $resulting_path it should start with "/" to be considered a valid Path URL.
             $check_pos = strpos($resulting_path, "/");
 
-            if ($check_pos !== false) { // The character "/" was found!
+            if ($check_pos !== FALSE) {
+              // The character "/" was found!
               // If the $resulting_path doesn't start with "/" then this user don't have access to use the current PATH.
               if ($check_pos != 0) {
-                $has_access = false;
+                $has_access = FALSE;
               }
             }
-            else { // No "/" character found, this is an invalid path.
-              $has_access = false;
+            else {
+              // No "/" character found, this is an invalid path.
+              $has_access = FALSE;
             }
           }
-
         }
       }
     }
 
-    if ($has_access ==  false) {
-      // $path = json_encode($path);
-      // \Drupal::messenger()->addWarning("Path: {$path}");
-
-      // Prepare the Notice message
+    if ($has_access == FALSE) {
+      // Prepare the Notice message.
       $list_of_paths = "";
 
-      // List the paths that this user can access in a single string variable
+      // List the paths that this user can access in a single string variable.
       foreach ($this_user_permissions as &$permission_path) {
 
         if ($list_of_paths == "") {
@@ -625,10 +530,8 @@ function permissions_by_path_form_validate(&$form, \Drupal\Core\Form\FormStateIn
         }
       }
 
-      // Wrong PATH message
+      // Wrong PATH message.
       $form_state->setErrorByName('path][0][alias', t("You don't have access to use this URL alias.<br> Make sure to use a path that starts with (one of) the following path(s): {$list_of_paths}"));
     }
-
   }
-
 }
