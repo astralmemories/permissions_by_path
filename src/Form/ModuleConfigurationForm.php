@@ -7,6 +7,8 @@ use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Drupal\user\Entity\Role;
+use Drupal\node\Entity\NodeType;
 
 /**
  * Defines the configuration form for the Permissions by Path module.
@@ -61,6 +63,20 @@ class ModuleConfigurationForm extends ConfigFormBase {
       $form_state->set('path_permissions', $path_permissions);
     }
 
+    // Get all roles.
+    $roles = Role::loadMultiple();
+    $role_options = [];
+    foreach ($roles as $role) {
+      $role_options[$role->id()] = $role->label() . ' (' . $role->id() . ')';
+    }
+
+    // Get all content types.
+    $content_types = NodeType::loadMultiple();
+    $content_type_options = [];
+    foreach ($content_types as $type) {
+      $content_type_options[$type->id()] = $type->label() . ' (' . $type->id() . ')';
+    }
+
     // Checkbox to enable or disable the module.
     $form['module_enable'] = [
       '#type' => 'checkbox',
@@ -68,20 +84,22 @@ class ModuleConfigurationForm extends ConfigFormBase {
       '#default_value' => $config->get('module_enable'),
     ];
 
-    // Textarea for listing unaffected roles (one per line).
-    $form['unaffected_roles'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('Roles not affected'),
-      '#default_value' => implode("\n", $config->get('unaffected_roles')),
-      '#description' => $this->t('One role ID per line.'),
+    // Checkboxes for listing affected roles.
+    $form['affected_roles'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('Roles affected'),
+      '#options' => $role_options,
+      '#default_value' => $config->get('affected_roles') ?: [],
+      '#description' => $this->t('Select roles that <strong>are</strong> affected by this module.'),
     ];
 
-    // Textarea for listing affected content types (one per line).
+    // Checkboxes for listing affected content types.
     $form['affected_node_forms'] = [
-      '#type' => 'textarea',
+      '#type' => 'checkboxes',
       '#title' => $this->t('Content types affected'),
-      '#default_value' => implode("\n", $config->get('affected_node_forms')),
-      '#description' => $this->t('One content type machine name per line.'),
+      '#options' => $content_type_options,
+      '#default_value' => $config->get('affected_node_forms') ?: [],
+      '#description' => $this->t('Select content types that <strong>are</strong> affected by this module.'),
     ];
 
     // Table for dynamic path-to-users mappings.
@@ -188,10 +206,15 @@ class ModuleConfigurationForm extends ConfigFormBase {
         ];
       }
     }
+    
+    // Only save the keys (machine names) of checked items.
+    $affected_roles = array_keys(array_filter($values['affected_roles']));
+    $affected_node_forms = array_keys(array_filter($values['affected_node_forms']));
+
     $this->config('permissions_by_path.settings')
       ->set('module_enable', (bool) $values['module_enable'])
-      ->set('unaffected_roles', array_filter(explode("\n", $values['unaffected_roles'])))
-      ->set('affected_node_forms', array_filter(explode("\n", $values['affected_node_forms'])))
+      ->set('affected_roles', $affected_roles)
+      ->set('affected_node_forms', $affected_node_forms)
       ->set('path_permissions', $path_permissions)
       ->save();
 

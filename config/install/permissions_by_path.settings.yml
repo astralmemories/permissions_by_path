@@ -1,5 +1,5 @@
 module_enable: false
-unaffected_roles: []
+affected_roles: []
 affected_node_forms: []
 path_permissions: 
   -

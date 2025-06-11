@@ -5,9 +5,9 @@ permissions_by_path.settings:
     module_enable:
       type: boolean
       label: 'Enabled'
-    unaffected_roles:
+    affected_roles:
       type: sequence
-      label: 'Roles not affected'
+      label: 'Roles affected'
       sequence:
         type: string
     affected_node_forms:
