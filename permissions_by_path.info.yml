@@ -1,7 +1,6 @@
-name: Permissions by Path
-description: Custom permissions module.
-package: Custom
+name: 'Permissions by Path'
 type: module
-core: 8.x
-configure: permissions_by_path.admin_settings
-core_version_requirement: ^8 || ^9
+description: "Grants fine-grained editorial access by limiting node creation and editing permissions to specific URL paths for selected users."
+package: Custom
+core_version_requirement: ^10 || ^11
+configure: permissions_by_path.settings

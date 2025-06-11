@@ -2,341 +2,199 @@
 
 namespace Drupal\permissions_by_path\Form;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * Defines a form that configures forms module settings.
+ * Defines the configuration form for the Permissions by Path module.
  */
 class ModuleConfigurationForm extends ConfigFormBase {
 
   /**
-   * {@inheritdoc}
+   * Constructs the configuration form object.
+   *
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory.
+   * @param \Drupal\Core\Config\TypedConfigManagerInterface $typed_config
+   *   The typed config manager.
+   */
+  public function __construct(ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typed_config) {
+    parent::__construct($config_factory, $typed_config);
+  }
+
+  /**
+   * Dependency injection factory for this form.
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('config.factory'),
+      $container->get('config.typed')
+    );
+  }
+
+  /**
+   * Returns the unique form ID.
    */
   public function getFormId() {
     return 'permissions_by_path_settings';
   }
 
   /**
-   * {@inheritdoc}
+   * Returns the names of the editable configuration objects.
    */
-  protected function getEditableConfigNames() {
-    return [
-      'permissions_by_path.settings',
-    ];
+  protected function getEditableConfigNames(): array {
+    return ['permissions_by_path.settings'];
   }
 
-
   /**
-   * {@inheritdoc}
+   * Builds the configuration form.
    */
-  public function buildForm(array $form, FormStateInterface $form_state, Request $request = NULL) {
-
+  public function buildForm(array $form, FormStateInterface $form_state): array {
+    // Load current config and form state for path_permissions.
     $config = $this->config('permissions_by_path.settings');
+    $path_permissions = $form_state->get('path_permissions');
+    if ($path_permissions === NULL) {
+      $path_permissions = $config->get('path_permissions') ?: [];
+      $form_state->set('path_permissions', $path_permissions);
+    }
 
-    // Enable/Disable this module
-    $form['module_enable_checkbox'] = [
+    // Checkbox to enable or disable the module.
+    $form['module_enable'] = [
       '#type' => 'checkbox',
-      '#title' => $this->t('Enable Module'),
+      '#title' => $this->t('Enable module'),
       '#default_value' => $config->get('module_enable'),
-      '#description' => $this->t('Enable/Disable this module functionality. All other settings are ignored if this is not checked.'),
     ];
 
-    // unaffected_roles
-    $form['unaffected_roles_textarea'] = [
+    // Textarea for listing unaffected roles (one per line).
+    $form['unaffected_roles'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('List of user roles that are not affected by this module:'),
-      '#default_value' => implode(PHP_EOL, $config->get('unaffected_roles')),
-      '#description' => $this->t('Write one user role ID per line.'),
+      '#title' => $this->t('Roles not affected'),
+      '#default_value' => implode("\n", $config->get('unaffected_roles')),
+      '#description' => $this->t('One role ID per line.'),
     ];
 
-    // affected_node_forms
-    $form['affected_node_forms_textarea'] = [
+    // Textarea for listing affected content types (one per line).
+    $form['affected_node_forms'] = [
       '#type' => 'textarea',
-      '#title' => $this->t('List of Content Types (Page types) that will be affected by this module:'),
-      '#default_value' => implode(PHP_EOL, $config->get('affected_node_forms')),
-      '#description' => $this->t('One node Content Type ID per line. Example: landing_page'),
+      '#title' => $this->t('Content types affected'),
+      '#default_value' => implode("\n", $config->get('affected_node_forms')),
+      '#description' => $this->t('One content type machine name per line.'),
     ];
 
-    // path1
-    $form['path1_textfield'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Permissions Path1:'),
-      '#default_value' => $config->get('path1'),
-      '#description' => $this->t('Add an existing path from this site that you wish to grant access to the following users. Example: /degrees'),
+    // Table for dynamic path-to-users mappings.
+    $form['path_permissions'] = [
+      '#type' => 'table',
+      '#header' => [
+        $this->t('Path'),
+        $this->t('Usernames (one per line)'),
+        $this->t('Operations'),
+      ],
+      '#empty' => $this->t('No path mappings yet.'),
     ];
 
-    // usernames1
-    $form['usernames1_textarea'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('List of users with access to Path1:'),
-      '#default_value' => implode(PHP_EOL, $config->get('usernames1')),
-      '#description' => $this->t('One username per line.'),
+    // Populate the table with existing mappings and add remove buttons.
+    foreach ($path_permissions as $delta => $item) {
+      $form['path_permissions'][$delta]['path'] = [
+        '#type' => 'textfield',
+        '#default_value' => $item['path'] ?? '',
+        '#size' => 30,
+        '#required' => TRUE,
+      ];
+      $form['path_permissions'][$delta]['users'] = [
+        '#type' => 'textarea',
+        '#default_value' => isset($item['users']) ? implode("\n", $item['users']) : '',
+        '#rows' => 2,
+        '#required' => TRUE,
+      ];
+      // Button to remove a mapping row.
+      $form['path_permissions'][$delta]['remove'] = [
+        '#type' => 'submit',
+        '#name' => 'remove_path_' . $delta,
+        '#value' => $this->t('Remove'),
+        '#submit' => ['::removePathMapping'],
+        '#limit_validation_errors' => [],
+        '#ajax' => [
+          'callback' => '::ajaxRefresh',
+          'wrapper' => 'permissions-by-path-form-wrapper',
+        ],
+      ];
+    }
+
+    // Button to add a new empty mapping row.
+    $form['add_path'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Add another mapping'),
+      '#submit' => ['::addPathMapping'],
+      '#limit_validation_errors' => [],
+      '#ajax' => [
+        'callback' => '::ajaxRefresh',
+        'wrapper' => 'permissions-by-path-form-wrapper',
+      ],
     ];
 
-    // path2
-    $form['path2_textfield'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Permissions Path2:'),
-      '#default_value' => $config->get('path2'),
-      '#description' => $this->t('Add an existing path from this site that you wish to grant access to the following users. Example: /admissions'),
+    // Wrap the form for AJAX updates.
+    return [
+      '#type' => 'container',
+      '#attributes' => ['id' => 'permissions-by-path-form-wrapper'],
+      'form' => parent::buildForm($form, $form_state),
     ];
-
-    // usernames2
-    $form['usernames2_textarea'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('List of users with access to Path2:'),
-      '#default_value' => implode(PHP_EOL, $config->get('usernames2')),
-      '#description' => $this->t('One username per line.'),
-    ];
-
-    // path3
-    $form['path3_textfield'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Permissions Path3:'),
-      '#default_value' => $config->get('path3'),
-      '#description' => $this->t('Add an existing path from this site that you wish to grant access to the following users. Example: /experience'),
-    ];
-
-    // usernames3
-    $form['usernames3_textarea'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('List of users with access to Path3:'),
-      '#default_value' => implode(PHP_EOL, $config->get('usernames3')),
-      '#description' => $this->t('One username per line.'),
-    ];
-
-    // path4
-    $form['path4_textfield'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Permissions Path4:'),
-      '#default_value' => $config->get('path4'),
-      '#description' => $this->t('Add an existing path from this site that you wish to grant access to the following users. Example: /parents'),
-    ];
-
-    // usernames4
-    $form['usernames4_textarea'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('List of users with access to Path4:'),
-      '#default_value' => implode(PHP_EOL, $config->get('usernames4')),
-      '#description' => $this->t('One username per line.'),
-    ];
-
-    // path5
-    $form['path5_textfield'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Permissions Path5:'),
-      '#default_value' => $config->get('path5'),
-      '#description' => $this->t('Add an existing path from this site that you wish to grant access to the following users. Example: /math'),
-    ];
-
-    // usernames5
-    $form['usernames5_textarea'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('List of users with access to Path5:'),
-      '#default_value' => implode(PHP_EOL, $config->get('usernames5')),
-      '#description' => $this->t('One username per line.'),
-    ];
-
-    // path6
-    $form['path6_textfield'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Permissions Path6:'),
-      '#default_value' => $config->get('path6'),
-      '#description' => $this->t('Add an existing path from this site that you wish to grant access to the following users. Example: /history'),
-    ];
-
-    // usernames6
-    $form['usernames6_textarea'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('List of users with access to Path6:'),
-      '#default_value' => implode(PHP_EOL, $config->get('usernames6')),
-      '#description' => $this->t('One username per line.'),
-    ];
-
-    // path7
-    $form['path7_textfield'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Permissions Path7:'),
-      '#default_value' => $config->get('path7'),
-      '#description' => $this->t('Add an existing path from this site that you wish to grant access to the following users. Example: /psychology'),
-    ];
-
-    // usernames7
-    $form['usernames7_textarea'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('List of users with access to Path7:'),
-      '#default_value' => implode(PHP_EOL, $config->get('usernames7')),
-      '#description' => $this->t('One username per line.'),
-    ];
-
-    // path8
-    $form['path8_textfield'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Permissions Path8:'),
-      '#default_value' => $config->get('path8'),
-      '#description' => $this->t('Add an existing path from this site that you wish to grant access to the following users. Example: /geography'),
-    ];
-
-    // usernames8
-    $form['usernames8_textarea'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('List of users with access to Path8:'),
-      '#default_value' => implode(PHP_EOL, $config->get('usernames8')),
-      '#description' => $this->t('One username per line.'),
-    ];
-
-    // path9
-    $form['path9_textfield'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Permissions Path9:'),
-      '#default_value' => $config->get('path9'),
-      '#description' => $this->t('Add an existing path from this site that you wish to grant access to the following users. Example: /sociology'),
-    ];
-
-    // usernames9
-    $form['usernames9_textarea'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('List of users with access to Path9:'),
-      '#default_value' => implode(PHP_EOL, $config->get('usernames9')),
-      '#description' => $this->t('One username per line.'),
-    ];
-
-    // path10
-    $form['path10_textfield'] = [
-      '#type' => 'textfield',
-      '#title' => $this->t('Permissions Path10:'),
-      '#default_value' => $config->get('path10'),
-      '#description' => $this->t('Add an existing path from this site that you wish to grant access to the following users. Example: /science'),
-    ];
-
-    // usernames10
-    $form['usernames10_textarea'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('List of users with access to Path10:'),
-      '#default_value' => implode(PHP_EOL, $config->get('usernames10')),
-      '#description' => $this->t('One username per line.'),
-    ];
-
-    return parent::buildForm($form, $form_state);
   }
 
-
   /**
-   * {@inheritdoc}
+   * Handler for adding a new path-to-users mapping row.
    */
-  public function validateForm(array &$form, FormStateInterface $form_state) {
-
+  public function addPathMapping(array &$form, FormStateInterface $form_state) {
+    $path_permissions = $form_state->get('path_permissions') ?: [];
+    $path_permissions[] = ['path' => '', 'users' => []];
+    $form_state->set('path_permissions', $path_permissions);
+    $form_state->setRebuild();
   }
 
+  /**
+   * Handler for removing a path-to-users mapping row.
+   */
+  public function removePathMapping(array &$form, FormStateInterface $form_state) {
+    $triggering_element = $form_state->getTriggeringElement();
+    $name = $triggering_element['#name'];
+    $delta = str_replace('remove_path_', '', $name);
+    $path_permissions = $form_state->get('path_permissions') ?: [];
+    unset($path_permissions[$delta]);
+    $form_state->set('path_permissions', array_values($path_permissions));
+    $form_state->setRebuild();
+  }
 
   /**
-   * {@inheritdoc}
+   * AJAX callback to refresh the form wrapper.
    */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
+  public function ajaxRefresh(array &$form, FormStateInterface $form_state) {
+    return $form;
+  }
 
-    # Set configuration file permissions_by_path.settings
-
+  /**
+   * Form submission handler.
+   * Saves all configuration values to the config system.
+   */
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
     $values = $form_state->getValues();
-
-    $permissions_by_path_settings = $this->config('permissions_by_path.settings');
-
-    // Prepare the configuration array fields
-    $unaffected_roles_settings_array = preg_split("/[\r\n]+/", $values['unaffected_roles_textarea']);
-    $unaffected_roles_settings_array = array_filter($unaffected_roles_settings_array);
-    $unaffected_roles_settings_array = array_values($unaffected_roles_settings_array);
-
-    $affected_node_forms_settings_array = preg_split("/[\r\n]+/", $values['affected_node_forms_textarea']);
-    $affected_node_forms_settings_array = array_filter($affected_node_forms_settings_array);
-    $affected_node_forms_settings_array = array_values($affected_node_forms_settings_array);
-
-    $usernames1_settings_array = preg_split("/[\r\n]+/", $values['usernames1_textarea']);
-    $usernames1_settings_array = array_filter($usernames1_settings_array);
-    $usernames1_settings_array = array_values($usernames1_settings_array);
-
-    $usernames2_settings_array = preg_split("/[\r\n]+/", $values['usernames2_textarea']);
-    $usernames2_settings_array = array_filter($usernames2_settings_array);
-    $usernames2_settings_array = array_values($usernames2_settings_array);
-
-    $usernames3_settings_array = preg_split("/[\r\n]+/", $values['usernames3_textarea']);
-    $usernames3_settings_array = array_filter($usernames3_settings_array);
-    $usernames3_settings_array = array_values($usernames3_settings_array);
-
-    $usernames4_settings_array = preg_split("/[\r\n]+/", $values['usernames4_textarea']);
-    $usernames4_settings_array = array_filter($usernames4_settings_array);
-    $usernames4_settings_array = array_values($usernames4_settings_array);
-
-    $usernames5_settings_array = preg_split("/[\r\n]+/", $values['usernames5_textarea']);
-    $usernames5_settings_array = array_filter($usernames5_settings_array);
-    $usernames5_settings_array = array_values($usernames5_settings_array);
-
-    $usernames6_settings_array = preg_split("/[\r\n]+/", $values['usernames6_textarea']);
-    $usernames6_settings_array = array_filter($usernames6_settings_array);
-    $usernames6_settings_array = array_values($usernames6_settings_array);
-
-    $usernames7_settings_array = preg_split("/[\r\n]+/", $values['usernames7_textarea']);
-    $usernames7_settings_array = array_filter($usernames7_settings_array);
-    $usernames7_settings_array = array_values($usernames7_settings_array);
-
-    $usernames8_settings_array = preg_split("/[\r\n]+/", $values['usernames8_textarea']);
-    $usernames8_settings_array = array_filter($usernames8_settings_array);
-    $usernames8_settings_array = array_values($usernames8_settings_array);
-
-    $usernames9_settings_array = preg_split("/[\r\n]+/", $values['usernames9_textarea']);
-    $usernames9_settings_array = array_filter($usernames9_settings_array);
-    $usernames9_settings_array = array_values($usernames9_settings_array);
-
-    $usernames10_settings_array = preg_split("/[\r\n]+/", $values['usernames10_textarea']);
-    $usernames10_settings_array = array_filter($usernames10_settings_array);
-    $usernames10_settings_array = array_values($usernames10_settings_array);
-
-
-    // Set the new values to their fields
-    $permissions_by_path_settings->set('module_enable', $form_state->getValue('module_enable_checkbox'));
-
-    $permissions_by_path_settings->set('unaffected_roles', $unaffected_roles_settings_array);
-
-    $permissions_by_path_settings->set('affected_node_forms', $affected_node_forms_settings_array);
-
-    $permissions_by_path_settings->set('path1', $form_state->getValue('path1_textfield'));
-    $permissions_by_path_settings->set('usernames1', $usernames1_settings_array);
-
-    $permissions_by_path_settings->set('path2', $form_state->getValue('path2_textfield'));
-    $permissions_by_path_settings->set('usernames2', $usernames2_settings_array);
-
-    $permissions_by_path_settings->set('path3', $form_state->getValue('path3_textfield'));
-    $permissions_by_path_settings->set('usernames3', $usernames3_settings_array);
-
-    $permissions_by_path_settings->set('path4', $form_state->getValue('path4_textfield'));
-    $permissions_by_path_settings->set('usernames4', $usernames4_settings_array);
-
-    $permissions_by_path_settings->set('path5', $form_state->getValue('path5_textfield'));
-    $permissions_by_path_settings->set('usernames5', $usernames5_settings_array);
-
-    $permissions_by_path_settings->set('path6', $form_state->getValue('path6_textfield'));
-    $permissions_by_path_settings->set('usernames6', $usernames6_settings_array);
-
-    $permissions_by_path_settings->set('path7', $form_state->getValue('path7_textfield'));
-    $permissions_by_path_settings->set('usernames7', $usernames7_settings_array);
-
-    $permissions_by_path_settings->set('path8', $form_state->getValue('path8_textfield'));
-    $permissions_by_path_settings->set('usernames8', $usernames8_settings_array);
-
-    $permissions_by_path_settings->set('path9', $form_state->getValue('path9_textfield'));
-    $permissions_by_path_settings->set('usernames9', $usernames9_settings_array);
-
-    $permissions_by_path_settings->set('path10', $form_state->getValue('path10_textfield'));
-    $permissions_by_path_settings->set('usernames10', $usernames10_settings_array);
-
-    // Save the new configuration
-    $permissions_by_path_settings->save();
-
+    $path_permissions = [];
+    if (isset($values['path_permissions'])) {
+      foreach ($values['path_permissions'] as $item) {
+        $path_permissions[] = [
+          'path' => $item['path'],
+          'users' => array_filter(array_map('trim', explode("\n", $item['users']))),
+        ];
+      }
+    }
+    $this->config('permissions_by_path.settings')
+      ->set('module_enable', (bool) $values['module_enable'])
+      ->set('unaffected_roles', array_filter(explode("\n", $values['unaffected_roles'])))
+      ->set('affected_node_forms', array_filter(explode("\n", $values['affected_node_forms'])))
+      ->set('path_permissions', $path_permissions)
+      ->save();
 
     parent::submitForm($form, $form_state);
-
-    // Clear the config_filter plugin cache.
-    \Drupal::service('plugin.manager.config_filter')->clearCachedDefinitions();
   }
-
 }

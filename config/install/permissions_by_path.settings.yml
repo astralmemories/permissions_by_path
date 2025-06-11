@@ -1,23 +1,14 @@
-module_enable: 0
-unaffected_roles: { }
-affected_node_forms: { }
-path1:
-usernames1: { }
-path2:
-usernames2: { }
-path3:
-usernames3: { }
-path4:
-usernames4: { }
-path5:
-usernames5: { }
-path6:
-usernames6: { }
-path7:
-usernames7: { }
-path8:
-usernames8: { }
-path9:
-usernames9: { }
-path10:
-usernames10: { }
+module_enable: false
+unaffected_roles: []
+affected_node_forms: []
+path_permissions: 
+  -
+    path: /news
+    users:
+      - marketing-user1
+      - marketing-user2
+  -
+    path: /helpdesk
+    users:
+      - help-desk-user1
+      - help-desk-user2

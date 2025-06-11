@@ -1,0 +1,4 @@
+permissions_by_path.settings:
+  title: 'Configure'
+  route_name: permissions_by_path.settings
+  description: 'Configure permissions by URL path for specific users.'

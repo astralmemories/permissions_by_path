@@ -1,0 +1,6 @@
+permissions_by_path.settings:
+  title: 'Permissions by Path Settings'
+  description: 'Configure which users can edit or create content under specific URL paths.'
+  parent: entity.user.collection
+  route_name: permissions_by_path.settings
+  weight: 10

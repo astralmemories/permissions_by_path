@@ -1,10 +1,11 @@
-permissions_by_path.admin_settings:
-  path: '/admin/config/permissions_by_path'
+permissions_by_path.settings:
+  path: '/admin/people/permissions_by_path'
   defaults:
     _form: '\Drupal\permissions_by_path\Form\ModuleConfigurationForm'
-    _title: 'Permissions by Path configuration screen'
+    _title: 'Permissions by Path Settings'
   requirements:
     _permission: 'administer site configuration'
+
 permissions_by_path.content:
   path: '/permissions_by_path_notice'
   defaults:

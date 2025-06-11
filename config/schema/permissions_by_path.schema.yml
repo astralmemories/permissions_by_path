@@ -1,0 +1,31 @@
+permissions_by_path.settings:
+  type: mapping
+  label: 'Permissions by Path settings'
+  mapping:
+    module_enable:
+      type: boolean
+      label: 'Enabled'
+    unaffected_roles:
+      type: sequence
+      label: 'Roles not affected'
+      sequence:
+        type: string
+    affected_node_forms:
+      type: sequence
+      label: 'Content types affected'
+      sequence:
+        type: string
+    path_permissions:
+      type: sequence
+      label: 'Path-to-users mappings'
+      sequence:
+        type: mapping
+        mapping:
+          path:
+            type: string
+            label: 'Path'
+          users:
+            type: sequence
+            sequence:
+              type: string
+            label: 'Usernames'
