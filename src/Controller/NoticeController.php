@@ -2,7 +2,6 @@
 
 namespace Drupal\permissions_by_path\Controller;
 
-use Drupal\node\NodeTypeStorageInterface;
 use Drupal\user\RoleStorageInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Config\ConfigFactoryInterface;
