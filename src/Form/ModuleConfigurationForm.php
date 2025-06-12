@@ -16,18 +16,6 @@ use Drupal\node\Entity\NodeType;
 class ModuleConfigurationForm extends ConfigFormBase {
 
   /**
-   * Constructs the configuration form object.
-   *
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   *   The config factory.
-   * @param \Drupal\Core\Config\TypedConfigManagerInterface $typed_config
-   *   The typed config manager.
-   */
-  public function __construct(ConfigFactoryInterface $config_factory, TypedConfigManagerInterface $typed_config) {
-    parent::__construct($config_factory, $typed_config);
-  }
-
-  /**
    * Dependency injection factory for this form.
    */
   public static function create(ContainerInterface $container) {
@@ -192,8 +180,7 @@ class ModuleConfigurationForm extends ConfigFormBase {
   }
 
   /**
-   * Form submission handler.
-   * Saves all configuration values to the config system.
+   * Form submission handler. Saves all config values to the config system.
    */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $values = $form_state->getValues();
@@ -206,7 +193,7 @@ class ModuleConfigurationForm extends ConfigFormBase {
         ];
       }
     }
-    
+
     // Only save the keys (machine names) of checked items.
     $affected_roles = array_keys(array_filter($values['affected_roles']));
     $affected_node_forms = array_keys(array_filter($values['affected_node_forms']));
@@ -220,4 +207,5 @@ class ModuleConfigurationForm extends ConfigFormBase {
 
     parent::submitForm($form, $form_state);
   }
+
 }
