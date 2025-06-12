@@ -2,11 +2,14 @@
 
 namespace Drupal\permissions_by_path\Controller;
 
+use Drupal\node\NodeTypeStorageInterface;
+use Drupal\user\RoleStorageInterface;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\user\UserStorageInterface;
+use Drupal\Core\Config\Entity\ConfigEntityStorageInterface;
 
 /**
  * Returns responses for Permissions by Path routes.
@@ -35,22 +38,47 @@ class NoticeController extends ControllerBase {
   protected $userStorage;
 
   /**
+   * The role storage.
+   *
+   * @var \Drupal\user\RoleStorageInterface
+   */
+  protected $roleStorage;
+
+  /**
+   * The node type storage.
+   *
+   * @var \Drupal\Core\Config\Entity\ConfigEntityStorageInterface
+   */
+  protected $nodeTypeStorage;
+
+  /**
    * Constructs a NoticeController object.
    */
-  public function __construct(AccountProxyInterface $current_user, ConfigFactoryInterface $config_factory, UserStorageInterface $user_storage) {
+  public function __construct(
+    AccountProxyInterface $current_user,
+    ConfigFactoryInterface $config_factory,
+    UserStorageInterface $user_storage,
+    RoleStorageInterface $role_storage,
+    ConfigEntityStorageInterface $node_type_storage,
+  ) {
     $this->currentUser = $current_user;
     $this->configFactory = $config_factory;
     $this->userStorage = $user_storage;
+    $this->roleStorage = $role_storage;
+    $this->nodeTypeStorage = $node_type_storage;
   }
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
+    $entity_type_manager = $container->get('entity_type.manager');
     return new static(
       $container->get('current_user'),
       $container->get('config.factory'),
-      $container->get('entity_type.manager')->getStorage('user')
+      $entity_type_manager->getStorage('user'),
+      $entity_type_manager->getStorage('user_role'),
+      $entity_type_manager->getStorage('node_type')
     );
   }
 
@@ -63,16 +91,36 @@ class NoticeController extends ControllerBase {
 
     // Get the configuration.
     $config = $this->configFactory->get('permissions_by_path.settings');
-    $module_enabled = $config->get('module_enable');
     $affected_roles = $config->get('affected_roles') ?: [];
     $affected_node_forms = $config->get('affected_node_forms') ?: [];
     $path_permissions = $config->get('path_permissions') ?: [];
 
-    // Get the current user's roles.
-    $user_roles = $this->currentUser->getRoles();
+    // Get the current user's roles, excluding 'authenticated'.
+    $user_roles = array_diff($this->currentUser->getRoles(), ['authenticated']);
 
-    // Check if the module is enabled and if the user has an affected role.
-    $is_affected = (bool) array_intersect($user_roles, $affected_roles);
+    // Show roles as "Label (machine_name)".
+    $user_roles_display = [];
+    foreach ($user_roles as $rid) {
+      if ($role = $this->roleStorage->load($rid)) {
+        $user_roles_display[] = $role->label() . ' (' . $rid . ')';
+      }
+    }
+
+    // Show affected roles as "Label (machine_name)".
+    $affected_roles_display = [];
+    foreach ($affected_roles as $rid) {
+      if ($role = $this->roleStorage->load($rid)) {
+        $affected_roles_display[] = $role->label() . ' (' . $rid . ')';
+      }
+    }
+
+    // Show affected content types as "Label (machine_name)".
+    $affected_node_forms_display = [];
+    foreach ($affected_node_forms as $type) {
+      if ($bundle = $this->nodeTypeStorage->load($type)) {
+        $affected_node_forms_display[] = $bundle->label() . ' (' . $type . ')';
+      }
+    }
 
     // Find which paths this user has access to.
     $user_paths = [];
@@ -84,18 +132,33 @@ class NoticeController extends ControllerBase {
       }
     }
 
-    // Build a render array for demonstration.
+    // Build the paths as an unordered list.
+    $user_paths_markup = $user_paths
+      ? '<ul>' . implode('', array_map(fn($p) => '<li><strong>' . $p . '</strong></li>', $user_paths)) . '</ul>'
+      : $this->t('None');
+
+    // Build the message.
+    $items = [
+      $this->t('Username: @username', ['@username' => $username]),
+      $this->t('Your roles: @roles', ['@roles' => $user_roles_display ? implode(', ', $user_roles_display) : $this->t('None')]),
+      $this->t('Roles affected by Permissions by Path: @roles', ['@roles' => $affected_roles_display ? implode(', ', $affected_roles_display) : $this->t('None')]),
+      $this->t('Content types affected: @types', ['@types' => $affected_node_forms_display ? implode(', ', $affected_node_forms_display) : $this->t('None')]),
+      [
+        '#markup' => $this->t('Paths you have access to:') . ' ' . $user_paths_markup,
+        '#allowed_tags' => ['ul', 'li', 'strong', 'em'],
+      ],
+    ];
+
     return [
-      '#theme' => 'item_list',
-      '#title' => $this->t('Permissions by Path Debug Info'),
-      '#items' => [
-        $this->t('Module enabled: @enabled', ['@enabled' => $module_enabled ? 'Yes' : 'No']),
-        $this->t('Your username: @username', ['@username' => $username]),
-        $this->t('Your roles: @roles', ['@roles' => implode(', ', $user_roles)]),
-        $this->t('Affected roles: @roles', ['@roles' => implode(', ', $affected_roles)]),
-        $this->t('Affected content types: @types', ['@types' => implode(', ', $affected_node_forms)]),
-        $this->t('You have access to these paths: @paths', ['@paths' => $user_paths ? implode(', ', $user_paths) : $this->t('None')]),
-        $this->t('Are you affected by this module? @affected', ['@affected' => $is_affected ? 'Yes' : 'No']),
+      '#title' => $this->t('Access Denied'),
+      '#markup' => '<div class="messages messages--error">' .
+      $this->t('You do not have permission to edit this page.<br><br>Only specific users are allowed to edit content within certain sections of the site. If you believe you should have access, please contact your site administrator.') .
+      '</div>',
+      'info' => [
+        '#theme' => 'item_list',
+        '#title' => $this->t('Your Permissions by Path Information'),
+        '#items' => $items,
+        '#attributes' => ['style' => 'margin-top:2em;'],
       ],
     ];
   }
