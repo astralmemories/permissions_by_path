@@ -6,7 +6,7 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Session\AccountProxyInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\user\Entity\User;
+use Drupal\user\UserStorageInterface;
 
 /**
  * Returns responses for Permissions by Path routes.
@@ -28,11 +28,19 @@ class NoticeController extends ControllerBase {
   protected $configFactory;
 
   /**
+   * The user storage.
+   *
+   * @var \Drupal\user\UserStorageInterface
+   */
+  protected $userStorage;
+
+  /**
    * Constructs a NoticeController object.
    */
-  public function __construct(AccountProxyInterface $current_user, ConfigFactoryInterface $config_factory) {
+  public function __construct(AccountProxyInterface $current_user, ConfigFactoryInterface $config_factory, UserStorageInterface $user_storage) {
     $this->currentUser = $current_user;
     $this->configFactory = $config_factory;
+    $this->userStorage = $user_storage;
   }
 
   /**
@@ -41,7 +49,8 @@ class NoticeController extends ControllerBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('current_user'),
-      $container->get('config.factory')
+      $container->get('config.factory'),
+      $container->get('entity_type.manager')->getStorage('user')
     );
   }
 
@@ -49,7 +58,7 @@ class NoticeController extends ControllerBase {
    * Returns a render array for the test page.
    */
   public function content() {
-    $user = User::load($this->currentUser->id());
+    $user = $this->userStorage->load($this->currentUser->id());
     $username = $user ? $user->getAccountName() : '';
 
     // Get the configuration.
