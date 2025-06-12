@@ -2,13 +2,11 @@
 
 namespace Drupal\permissions_by_path\Form;
 
-use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\user\Entity\Role;
-use Drupal\node\Entity\NodeType;
+use Drupal\user\RoleStorageInterface;
+use Drupal\node\NodeTypeStorageInterface;
 
 /**
  * Defines the configuration form for the Permissions by Path module.
@@ -16,12 +14,37 @@ use Drupal\node\Entity\NodeType;
 class ModuleConfigurationForm extends ConfigFormBase {
 
   /**
+   * The role storage.
+   *
+   * @var \Drupal\user\RoleStorageInterface
+   */
+  protected $roleStorage;
+
+  /**
+   * The node type storage.
+   *
+   * @var \Drupal\node\NodeTypeStorageInterface
+   */
+  protected $nodeTypeStorage;
+
+  /**
+   * Constructs the form.
+   */
+  public function __construct($config_factory, $typed_config, RoleStorageInterface $role_storage, NodeTypeStorageInterface $node_type_storage) {
+    parent::__construct($config_factory, $typed_config);
+    $this->roleStorage = $role_storage;
+    $this->nodeTypeStorage = $node_type_storage;
+  }
+
+  /**
    * Dependency injection factory for this form.
    */
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('config.factory'),
-      $container->get('config.typed')
+      $container->get('config.typed'),
+      $container->get('entity_type.manager')->getStorage('user_role'),
+      $container->get('entity_type.manager')->getStorage('node_type')
     );
   }
 
@@ -52,14 +75,14 @@ class ModuleConfigurationForm extends ConfigFormBase {
     }
 
     // Get all roles.
-    $roles = Role::loadMultiple();
+    $roles = $this->roleStorage->loadMultiple();
     $role_options = [];
     foreach ($roles as $role) {
       $role_options[$role->id()] = $role->label() . ' (' . $role->id() . ')';
     }
 
     // Get all content types.
-    $content_types = NodeType::loadMultiple();
+    $content_types = $this->nodeTypeStorage->loadMultiple();
     $content_type_options = [];
     foreach ($content_types as $type) {
       $content_type_options[$type->id()] = $type->label() . ' (' . $type->id() . ')';
